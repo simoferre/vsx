@@ -165,12 +165,15 @@ class VSX(object):
 
     def rmmask(self, lv, server):
         """
+        To be refactored
         """
+        pass
 
-        macs = self.hwaddr(server)
-        args = ' '.join([lv] + macs)
-        body = [{"op": "vRmmask", "addr": self.shelf, "args": args}]
-        self.post(body)
+#        macs = self.hwaddr(server)
+#        vsxlun = self.lu(lv=lv)['vsxlun']
+#        args = ' '.join([lv] + macs)
+#        body = [{"op": "vRmmask", "addr": vsxlun, "args": args}]
+#        self.post(body)
 
     def setmask(self, lvlist, server):
         """
@@ -180,8 +183,9 @@ class VSX(object):
         body = []
 
         for lv in lvlist:
+            vsxlun = self.lu(lv=lv)['vsxlun']
             args = ' '.join([lv] + macs)
-            body.append({"op": "vMask", "addr": self.shelf, "args": args})
+            body.append({"op": "vMask", "addr": vsxlun, "args": args})
 
         self.post(body)
 
