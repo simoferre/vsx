@@ -1,0 +1,12 @@
+README
+setup.cfg
+setup.py
+VSX.egg-info/PKG-INFO
+VSX.egg-info/SOURCES.txt
+VSX.egg-info/dependency_links.txt
+VSX.egg-info/entry_points.txt
+VSX.egg-info/not-zip-safe
+VSX.egg-info/top_level.txt
+vsx/__init__.py
+vsx/config.py
+vsx/vsx.py
