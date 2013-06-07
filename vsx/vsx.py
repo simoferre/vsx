@@ -43,10 +43,10 @@ class VSX(object):
         headers = {'content-type': 'application/json'}
 
         response = requests.post(url,
-                             cookies=self.cookies,
-                             data=json.dumps(bodylist),
-                             headers=headers,
-                             verify=False)
+                                 cookies=self.cookies,
+                                 data=json.dumps(bodylist),
+                                 headers=headers,
+                                 verify=False)
 
         if response.status_code != 200:
             syslog('request body: ' + response.request.body)
@@ -170,27 +170,30 @@ class VSX(object):
                       lun['shelf'], lun['index'], lun['lv'],
                       lun['size']/1000, lun['pool'], lun['snapshotCount'])
 
-    def rmmask(self, lv, server):
-        """
-        To be refactored
-        """
-        pass
-
-
-    def setmask(self, lvlist, server):
+    def _mask(self, operation, lvlist, server):
         """
         """
 
         macs = self.hwaddr(server)
         body = []
 
+        op = {"remove": "vRmmask", "add": "vMask"}
+
         for lv in lvlist:
             vsxshelf = self.lu(lv=lv)['vsxshelf']
             args = ' '.join([lv] + macs)
-            body.append({"op": "vMask", "addr": vsxshelf, "args": args})
+            body.append({"op": op[operation], "addr": vsxshelf, "args": args})
 
         response = self.post(body)
         syslog(response.text)
+
+    def rmmask(self, lvlist, server):
+
+        self._mask("remove", lvlist, server)
+
+    def setmask(self, lvlist, server):
+
+        self._mask("add", lvlist, server)
 
 
 def main():
