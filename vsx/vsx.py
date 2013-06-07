@@ -10,6 +10,7 @@ import simplejson as json
 from config import esm_server, esm_user, esm_password, esm_port, SHELVES
 import libxml2
 import os
+from syslog import syslog
 
 
 class VSX(object):
@@ -187,7 +188,8 @@ class VSX(object):
             args = ' '.join([lv] + macs)
             body.append({"op": "vMask", "addr": vsxlun, "args": args})
 
-        self.post(body)
+        response = self.post(body)
+        syslog(response.text)
 
 
 def main():
