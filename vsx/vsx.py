@@ -48,11 +48,10 @@ class VSX(object):
                              headers=headers,
                              verify=False)
 
-        #print dir(response)
-        print response.url
-        print dir(response.request)
-        print response.request.body
-        print response.text
+        if response.status_code != 200:
+            syslog('request body: ' + response.request.body)
+            syslog(str(response.status_code) + ': ' + response.text)
+
         return response
 
     def fetchluns(self):
