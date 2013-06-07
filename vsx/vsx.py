@@ -42,11 +42,18 @@ class VSX(object):
         url = self.url('configure')
         headers = {'content-type': 'application/json'}
 
-        return requests.post(url,
+        response = requests.post(url,
                              cookies=self.cookies,
                              data=json.dumps(bodylist),
                              headers=headers,
                              verify=False)
+
+        #print dir(response)
+        print response.url
+        print dir(response.request)
+        print response.request.body
+        print response.text
+        return response
 
     def fetchluns(self):
         # Fetch luns info
@@ -170,11 +177,6 @@ class VSX(object):
         """
         pass
 
-#        macs = self.hwaddr(server)
-#        vsxlun = self.lu(lv=lv)['vsxlun']
-#        args = ' '.join([lv] + macs)
-#        body = [{"op": "vRmmask", "addr": vsxlun, "args": args}]
-#        self.post(body)
 
     def setmask(self, lvlist, server):
         """
@@ -184,9 +186,9 @@ class VSX(object):
         body = []
 
         for lv in lvlist:
-            vsxlun = self.lu(lv=lv)['vsxlun']
+            vsxshelf = self.lu(lv=lv)['vsxshelf']
             args = ' '.join([lv] + macs)
-            body.append({"op": "vMask", "addr": vsxlun, "args": args})
+            body.append({"op": "vMask", "addr": vsxshelf, "args": args})
 
         response = self.post(body)
         syslog(response.text)
@@ -195,15 +197,19 @@ class VSX(object):
 def main():
     import pprint
 
-    pp = pprint.PrettyPrinter(indent=4)
+    #pp = pprint.PrettyPrinter(indent=4)
 
     vsx = VSX()
 
-    lvlist = [vsx.lu(lun=lun)['lv']
-              for lun in luns(libxml2.parseFile('log.xml'))]
+    #lvlist = [vsx.lu(lun=lun)['lv']
+    #          for lun in luns(libxml2.parseFile('log.xml'))]
 
-    pp.pprint(vsx.lu(lv='log'))
+    #pp.pprint(vsx.lu(lv='log'))
 
+    lvs = [u'logstriped', u'logdata']
+    server = 'doom'
+
+    vsx.setmask(lvs, server)
     #print lvlist, vsx.hwaddr('pong')
 
 if __name__ == "__main__":
