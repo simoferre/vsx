@@ -8,8 +8,6 @@ from re import match, IGNORECASE
 import requests
 import simplejson as json
 from config import esm_server, esm_user, esm_password, esm_port, SHELVES
-import libxml2
-import os
 from syslog import syslog
 
 
@@ -199,19 +197,19 @@ class VSX(object):
 def main():
     import pprint
 
-    #pp = pprint.PrettyPrinter(indent=4)
+    pp = pprint.PrettyPrinter(indent=4)
 
     vsx = VSX()
 
     #lvlist = [vsx.lu(lun=lun)['lv']
     #          for lun in luns(libxml2.parseFile('log.xml'))]
 
-    #pp.pprint(vsx.lu(lv='log'))
+    pp.pprint(vsx.lu(lv='logdata'))
 
     lvs = [u'logstriped', u'logdata']
     server = 'doom'
 
-    vsx.setmask(lvs, server)
+    #vsx.setmask(lvs, server)
     #print lvlist, vsx.hwaddr('pong')
 
 if __name__ == "__main__":
