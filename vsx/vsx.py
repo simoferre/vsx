@@ -17,6 +17,11 @@ class VSX(object):
     """
 
     def __init__(self):
+        """
+        The VSX constructor. It logs on the ESM, stores
+        the cookies and fetch all luns info presents on
+        the VSX aplliances.
+        """
 
         user = esm_user
         password = esm_password
@@ -29,13 +34,26 @@ class VSX(object):
         resp = requests.post(url, params=params, verify=False)
         self.cookies = dict(JSESSIONID=resp.cookies['JSESSIONID'])
 
+        self.luns = []
         self.fetchluns()
 
     def url(self, path):
+        """
+        Build a url.
+        @return: a properly configured url.
+        """
 
         return 'https://' + esm_server + ':' + esm_port + '/' + path
 
     def post(self, bodylist):
+        """
+        Perform the actual POST query to the ESM.
+
+        @param bodylist: a list of bodydict (aka POST operation)
+        @type bodylist: list of dicts
+
+        @return: the POST response.
+        """
 
         url = self.url('configure')
         headers = {'content-type': 'application/json'}
@@ -53,7 +71,9 @@ class VSX(object):
         return response
 
     def fetchluns(self):
-        # Fetch luns info
+        """
+        Fetch luns info. Gather all informations in self.luns.
+        """
 
         url = self.url('fetch')
 
@@ -76,6 +96,13 @@ class VSX(object):
             self.luns += info
 
     def lu(self, lun=None, lv=None):
+        """
+        Return a Logical Unit from either a LUN or a LV.
+        IMPORTANT: It returns only the LU of type 'vsxlun'.
+
+        @return: a dict containing all the info for a LU.
+        @rtype: dict
+        """
 
         if lun:
             (shelf, index) = map(int, lun.split('.'))
@@ -170,6 +197,12 @@ class VSX(object):
 
     def _mask(self, operation, lvlist, server):
         """
+        Actually perform a (rm)mask operation.
+
+        @param operation: it can be either 'remove' or 'add'
+        @param lvlist: the lv list to mask
+        @param server: the server name, needed to obtain the
+                       related macaddresses.
         """
 
         macs = self.hwaddr(server)
