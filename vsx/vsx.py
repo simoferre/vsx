@@ -141,60 +141,6 @@ class VSX(object):
 
         return [elem['macAddr'] for elem in info if elem['server'] == server]
 
-    def printluns(self, alun=None):
-        """
-        Stampa le info di alun (o di tutte le lun per default)
-        """
-
-        print "-" * 56
-        print "%-5s %21s %11s %10s %s" % ('lun', 'lv', 'size', 'pool', 'snaps')
-        print "-" * 56
-
-        for lun in self.luns:
-            lunindex = [lun['shelf'], lun['index']]
-            if not alun or lunindex == map(int, alun.split('.')):
-                print "%3s.%-4s %18s %8d GB %10s %5d" % (
-                      lun['shelf'], lun['index'], lun['lv'],
-                      lun['size']/1000, lun['pool'], lun['snapshotCount'])
-
-    def printlv(self, lvs=None):
-        """
-        Stampa le info di lvs (o di tutti i lv per default)
-        """
-
-        def lvmatch(regex, lvs):
-            """
-            Ritorna True se la regex matcha lvs
-            """
-            return match(regex, lvs, IGNORECASE) is not None
-
-        if not lvs:
-            return
-
-        regex = '^%s$' % lvs
-
-        if lvs.startswith('*') and lvs.endswith('*'):
-            lvs = lvs.replace('*', '')
-            regex = ".*%s.*$" % lvs
-        elif lvs.startswith('*'):
-            lvs = lvs.replace('*', '')
-            regex = ".*%s$" % lvs
-        elif lvs.endswith('*'):
-            lvs = lvs.replace('*', '')
-            regex = "^%s.*" % lvs
-
-        print regex
-
-        print "-" * 56
-        print "%-5s %21s %11s %10s %s" % ('lun', 'lv', 'size', 'pool', 'snaps')
-        print "-" * 56
-
-        for lun in self.luns:
-            if lvmatch(regex, lun['lv']):
-                print "%3s.%-4s %18s %8d GB %10s %5d" % (
-                      lun['shelf'], lun['index'], lun['lv'],
-                      lun['size']/1000, lun['pool'], lun['snapshotCount'])
-
     def _mask(self, operation, lvlist, server):
         """
         Actually perform a (rm)mask operation.
