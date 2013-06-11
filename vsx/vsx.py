@@ -165,31 +165,72 @@ class VSX(object):
         syslog(response.text)
 
     def rmmask(self, lvlist, server):
+        """
+        Remove masks (if needed)
+
+        @param lvlist: the lv list to mask
+        @param server: the server name, needed to obtain the
+                       related macaddresses.
+        """
 
         self._mask("remove", lvlist, server)
 
     def setmask(self, lvlist, server):
+        """
+        Set masks (if needed)
+
+        @param lvlist: the lv list to mask
+        @param server: the server name, needed to obtain the
+                       related macaddresses.
+        """
 
         self._mask("add", lvlist, server)
 
 
-def main():
-    import pprint
+import unittest
 
-    pp = pprint.PrettyPrinter(indent=4)
 
-    vsx = VSX()
+class TestVSX(unittest.TestCase):
 
-    #lvlist = [vsx.lu(lun=lun)['lv']
-    #          for lun in luns(libxml2.parseFile('log.xml'))]
+    def setUp(self):
+        self.vsx = VSX()
+        self.lu = self.vsx.lu(lv="testlv")
+        self.server = "mirrina"
+        self.macs = {self.server: [u"001b21185d84", u"001517783fd0"]}
 
-    pp.pprint(vsx.lu(lv='logdata'))
+        self.testlv = {
+            u"status": u"online",
+            u"index": 55,
+            u"eladdr": u"5100002590311e00",
+            u"vsxlun": True,
+            u"srxlun": False,
+            u"shelf": 105,
+            u"lv_os_name": u"testlv",
+            u"masks": None,
+            u"vsxshelf": "96",
+            u"vsxIndex": 2359,
+            u"snapshotCount": 0,
+            u"mode": u"read/write",
+            u"idPath": u"shelfEladdr=5100002590311e00&vsxlun=2359",
+            u"lv": u"testlv",
+            u"owner": None,
+            u"serverAccessMode": u"Unrestricted",
+            u"objectType": u"nsObject",
+            u"config": u"",
+            u"serial": u"e50b01d55c6eec1afc68",
+            u"pool": u"pool00",
+            u"size": 0
+        }
 
-    lvs = [u'logstriped', u'logdata']
-    server = 'doom'
+    def test_lu(self):
+        self.assertEqual(self.vsx.lu(lun="105.55"), self.lu)
+        self.assertEqual(self.testlv["lv"], self.lu["lv"])
 
-    #vsx.setmask(lvs, server)
-    #print lvlist, vsx.hwaddr('pong')
+    def test_hwaddr(self):
+        self.assertEqual(self.vsx.hwaddr(self.server), self.macs[self.server])
+
+    def test_mask(self):
+        pass
 
 if __name__ == "__main__":
-    main()
+    unittest.main()
