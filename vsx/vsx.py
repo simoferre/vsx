@@ -151,7 +151,9 @@ class VSX(object):
                        related macaddresses.
         """
 
-        macs = self.hwaddr(server)
+        macs = [mac
+                for mac in self.hwaddr(server)
+                for server in serverlist]
         body = []
 
         op = {"remove": "vRmmask", "add": "vMask"}
@@ -164,7 +166,9 @@ class VSX(object):
         response = self.post(body)
         syslog(response.text)
 
-    def rmmask(self, lvlist, server):
+        return response
+
+    def rmmask(self, lvlist, serverlist):
         """
         Remove masks (if needed)
 
@@ -173,9 +177,9 @@ class VSX(object):
                        related macaddresses.
         """
 
-        self._mask("remove", lvlist, server)
+        return self._mask("remove", lvlist, server)
 
-    def setmask(self, lvlist, server):
+    def setmask(self, lvlist, serverlist):
         """
         Set masks (if needed)
 
@@ -184,7 +188,7 @@ class VSX(object):
                        related macaddresses.
         """
 
-        self._mask("add", lvlist, server)
+        return self._mask("add", lvlist, serverlist)
 
 
 import unittest
