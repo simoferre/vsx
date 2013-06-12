@@ -141,7 +141,7 @@ class VSX(object):
 
         return [elem['macAddr'] for elem in info if elem['server'] == server]
 
-    def _mask(self, operation, lvlist, server):
+    def _mask(self, operation, lvlist, serverlist):
         """
         Actually perform a (rm)mask operation.
 
@@ -151,10 +151,10 @@ class VSX(object):
                        related macaddresses.
         """
 
-        macs = [mac
-                for mac in self.hwaddr(server)
-                for server in serverlist]
         body = []
+        macs = [mac
+                for server in serverlist
+                for mac in self.hwaddr(server)]
 
         op = {"remove": "vRmmask", "add": "vMask"}
 
@@ -177,7 +177,7 @@ class VSX(object):
                        related macaddresses.
         """
 
-        return self._mask("remove", lvlist, server)
+        return self._mask("remove", lvlist, serverlist)
 
     def setmask(self, lvlist, serverlist):
         """
