@@ -21,12 +21,31 @@ import os
 
 from vsx import config
 from vsx import VSX
-from domain import luns
 from docopt import docopt
 from lxml import etree
 
 
 storage = VSX()
+
+
+def luns(dom):
+    """Xpath query to retrieve instance's disks from XML
+    """
+
+    if isinstance(dom, libvirt.virDomain):
+        dom = dom.XMLDesc(0)
+
+    tree = etree.fromstring(dom)
+    devices = []
+
+    for disk in tree.xpath("/domain/devices/disk[@device='disk']"):
+
+        try:
+            devices.append(disk.xpath("source/@dev")[0])
+        except IndexError:
+            pass
+
+    return [os.path.basename(dev).strip('e') for dev in devices]
 
 
 def _lvlist(lus):
