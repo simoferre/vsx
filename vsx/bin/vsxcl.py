@@ -55,36 +55,50 @@ def _lvlist(lus):
     return [storage.lu(lun=l)['lv'] for l in lus]
 
 
-def listguests():
-    """Print a list of all guests
+def printguest(host, dom):
+    """Print a guest
     """
-    
+
+    print "%s" % host.upper()
+
+    if dom.isPersistent:
+        print "    P",
+
+    lus = luns(dom)
+    lvs = _lvlist(lus)
+
+    strlv = ''
+    for lv in lvs:
+        lu = storage.lu(lv=lv)
+        mask = '!'
+        if lu['masks']:
+            mask = '#'
+
+        strlv += "%s(%s) " % (lv, lu[u'snapshotCount'])
+
+        strlu = ' '.join(lus)
+        print "%s %s %s %s" % (mask, dom.name(), strlu, strlv)
+
+
+def listguests(guest=None):
+    """A guestlist representation
+    """
+    devnull = open(os.devnull, 'w')
+
     for host in config.HOSTS:
 
         conn = libvirt.open("qemu+ssh://%s/system" % host)
 
-        print "%s" % host.upper()
-
-        for id in conn.listDomainsID():
-            dom = conn.lookupByID(id)
-
-            if dom.isPersistent:
-                print "    P",
-
-            lus = luns(dom)
-            lvs = _lvlist(lus)
-
-            strlv = ''
-            for lv in lvs:
-                lu = storage.lu(lv=lv)
-                mask = '!'
-                if lu['masks']:
-                    mask = '#'
-
-                strlv += "%s(%s) " % (lv, lu[u'snapshotCount'])
-
-            strlu = ' '.join(lus)
-            print "%s %s %s %s" % (mask, dom.name(), strlu, strlv)
+        if guest:
+            try:
+                dom = conn.lookupByName(guest)
+                printguest(host, dom)
+            except libvirt.libvirtError, err:
+                continue
+        else:
+            for did in conn.listDomainsID():
+                dom = conn.lookupByID(did)
+                printguest(host, dom)
 
 
 def main():
@@ -94,7 +108,7 @@ def main():
     arguments = docopt(__doc__, version='CLI for VSX 0.1a')
 
     if arguments["info"]:
-        listguests()
+        listguests(arguments["<guest>"])
 
 if __name__ == '__main__':
     main()
