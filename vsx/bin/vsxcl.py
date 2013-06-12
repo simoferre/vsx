@@ -25,6 +25,13 @@ from docopt import docopt
 from lxml import etree
 
 
+# override libvirt's default error handler
+def errorHandler(ctx, err):
+    pass
+
+
+libvirt.registerErrorHandler(errorHandler, None)
+
 storage = VSX()
 
 
