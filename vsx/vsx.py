@@ -141,20 +141,27 @@ class VSX(object):
 
         return [elem['macAddr'] for elem in info if elem['server'] == server]
 
-    def _mask(self, operation, lvlist, serverlist):
-        """
-        Actually perform a (rm)mask operation.
+    def _mask(self, operation, lvlist, server, serverlist):
+        """Actually perform a (rm)mask operation.
+
+        It takes either a server or a list of servers.
 
         @param operation: it can be either 'remove' or 'add'
         @param lvlist: the lv list to mask
         @param server: the server name, needed to obtain the
                        related macaddresses.
+        @param serverlist: the server name list, needed to obtain the
+                           related macaddresses.
         """
 
         body = []
+
+        if server:
+            serverlist = [server, ]
+
         macs = [mac
-                for server in serverlist
-                for mac in self.hwaddr(server)]
+                for srv in serverlist
+                for mac in self.hwaddr(srv)]
 
         op = {"remove": "vRmmask", "add": "vMask"}
 
@@ -168,27 +175,29 @@ class VSX(object):
 
         return response
 
-    def rmmask(self, lvlist, serverlist):
-        """
-        Remove masks (if needed)
+    def rmmask(self, lvlist, server=None, serverlist=[]):
+        """Remove masks (if needed).
 
         @param lvlist: the lv list to mask
         @param server: the server name, needed to obtain the
                        related macaddresses.
+        @param serverlist: the server name list, needed to obtain the
+                           related macaddresses.
         """
 
-        return self._mask("remove", lvlist, serverlist)
+        return self._mask("remove", lvlist, server, serverlist)
 
-    def setmask(self, lvlist, serverlist):
-        """
-        Set masks (if needed)
+    def setmask(self, lvlist, server=None, serverlist=[]):
+        """Set masks (if needed).
 
         @param lvlist: the lv list to mask
         @param server: the server name, needed to obtain the
                        related macaddresses.
+        @param serverlist: the server name list, needed to obtain the
+                           related macaddresses.
         """
 
-        return self._mask("add", lvlist, serverlist)
+        return self._mask("add", lvlist, server, serverlist)
 
 
 import unittest
