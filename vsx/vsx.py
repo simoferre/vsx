@@ -207,8 +207,10 @@ import unittest
 class TestVSX(unittest.TestCase):
 
     def setUp(self):
+
         self.vsx = VSX()
-        self.lu = self.vsx.lu(lv="testlv")
+        self.lu = self.vsx.lu(lv="testlv1")
+
         self.server = "mirrina"
         self.macs = {self.server: [u"001b21185d84", u"001517783fd0"]}
 
@@ -219,14 +221,14 @@ class TestVSX(unittest.TestCase):
             u"vsxlun": True,
             u"srxlun": False,
             u"shelf": 105,
-            u"lv_os_name": u"testlv",
+            u"lv_os_name": u"testlv1",
             u"masks": None,
             u"vsxshelf": "96",
             u"vsxIndex": 2359,
             u"snapshotCount": 0,
             u"mode": u"read/write",
             u"idPath": u"shelfEladdr=5100002590311e00&vsxlun=2359",
-            u"lv": u"testlv",
+            u"lv": u"testlv1",
             u"owner": None,
             u"serverAccessMode": u"Unrestricted",
             u"objectType": u"nsObject",
@@ -237,14 +239,98 @@ class TestVSX(unittest.TestCase):
         }
 
     def test_lu(self):
+        """
+        """
+
         self.assertEqual(self.vsx.lu(lun="105.55"), self.lu)
         self.assertEqual(self.testlv["lv"], self.lu["lv"])
 
     def test_hwaddr(self):
+        """
+        """
+
         self.assertEqual(self.vsx.hwaddr(self.server), self.macs[self.server])
 
-    def test_mask(self):
-        pass
+    def test_1_server_1_lv_mask(self):
+        """
+        Test mask to one exsisting LV on one server
+        """
+
+        resp = self.vsx.setmask([self.lu["lv"], ], self.server)
+        self.assertEqual(resp.status_code, 200)
+
+        resp = self.vsx.rmmask([self.lu["lv"], ], self.server)
+        self.assertEqual(resp.status_code, 200)
+
+    def test_2_servers_1_lv_mask(self):
+        """
+        Test mask to one exsisting LV on two servers
+        """
+
+        server2 = "pacman"
+
+        resp = self.vsx.setmask([self.lu["lv"], ],
+                                serverlist=[self.server, server2])
+        self.assertEqual(resp.status_code, 200)
+
+        resp = self.vsx.rmmask([self.lu["lv"], ],
+                               serverlist=[self.server, server2])
+        self.assertEqual(resp.status_code, 200)
+
+    def test_2_servers_2_lvs_mask(self):
+        """
+        Test mask to two exsisting LV on two servers
+        """
+
+        server2 = "pacman"
+        lv2 = "testlv2"
+
+        resp = self.vsx.setmask([self.lu["lv"], lv2],
+                                serverlist=[self.server, server2])
+        self.assertEqual(resp.status_code, 200)
+
+        resp = self.vsx.rmmask([self.lu["lv"], lv2],
+                               serverlist=[self.server, server2])
+        self.assertEqual(resp.status_code, 200)
+
+    def test_twice_mask(self):
+        """
+        Test mask twice the same lv
+        """
+        resp = self.vsx.setmask([self.lu["lv"], ], self.server)
+        self.assertEqual(resp.status_code, 200)
+
+        # Set the same mask
+        resp = self.vsx.setmask([self.lu["lv"], ], self.server)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.ok)
+
+        js = resp.json()
+
+        self.assertEqual(js["metaCROp"], "noAction")
+        self.assertEqual(js["configState"], "completedFailed")
+        self.assertEqual(js["message"],
+                         "mask 001b21185d84 exists on LV testlv1")
+
+        resp = self.vsx.rmmask([self.lu["lv"], ], self.server)
+        self.assertEqual(resp.status_code, 200)
+
+    def test_rm_unmasked_lun(self):
+        """
+        Try to unmask a non-masked lv
+        """
+
+        resp = self.vsx.rmmask([self.lu["lv"], ], self.server)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.ok)
+
+        js = resp.json()
+
+        self.assertEqual(js["metaCROp"], "noAction")
+        self.assertEqual(js["configState"], "completedFailed")
+        self.assertEqual(js["message"],
+                         "mask 001b21185d84 does not exist on LV testlv1")
 
 if __name__ == "__main__":
     unittest.main()
