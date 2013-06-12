@@ -17,8 +17,9 @@ class VSX(object):
     """
 
     def __init__(self):
-        """
-        The VSX constructor. It logs on the ESM, stores
+        """The VSX constructor.
+
+        It logs on the ESM, stores
         the cookies and fetch all luns info presents on
         the VSX aplliances.
         """
@@ -38,16 +39,15 @@ class VSX(object):
         self.fetchluns()
 
     def url(self, path):
-        """
-        Build a url.
+        """Build a url.
+
         @return: a properly configured url.
         """
 
         return 'https://' + esm_server + ':' + esm_port + '/' + path
 
     def post(self, bodylist):
-        """
-        Perform the actual POST query to the ESM.
+        """Perform the actual POST query to the ESM.
 
         @param bodylist: a list of bodydict (aka POST operation)
         @type bodylist: list of dicts
@@ -71,8 +71,9 @@ class VSX(object):
         return response
 
     def fetchluns(self):
-        """
-        Fetch luns info. Gather all informations in self.luns.
+        """Fetch luns info.
+
+        Gather all informations in self.luns.
         """
 
         url = self.url('fetch')
@@ -96,9 +97,9 @@ class VSX(object):
             self.luns += info
 
     def lu(self, lun=None, lv=None):
-        """
-        Return a Logical Unit from either a LUN or a LV.
-        IMPORTANT: It returns only the LU of type 'vsxlun'.
+        """Return a Logical Unit from either a LUN or a LV.
+
+        It returns only the LU of type 'vsxlun'.
 
         @return: a dict containing all the info for a LU.
         @rtype: dict
@@ -122,8 +123,8 @@ class VSX(object):
                     return lu
 
     def hwaddr(self, server=None):
-        """
-        Return server's mac addresses
+        """Return server's mac addresses
+
         """
 
         if server is None:
