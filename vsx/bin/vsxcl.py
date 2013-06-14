@@ -35,6 +35,32 @@ libvirt.registerErrorHandler(errorHandler, None)
 storage = VSX()
 
 
+COLORS = {
+  'black': '0;30', 'dark gray': '1;30',
+  'blue': '0;34', 'light blue': '1;34',
+  'green': '0;32', 'light green': '1;32',
+  'cyan': '0;36', 'light cyan': '1;36',
+  'red': '0;31', 'light red': '1;31',
+  'purple': '0;35', 'light purple': '1;35',
+  'brown': '0;33', 'yellow': '1;33',
+  'light gray':'0;37', 'white': '1;37',
+}
+
+
+FLAGS = {
+    'live'           : libvirt.VIR_MIGRATE_LIVE,
+    'persistent'     : libvirt.VIR_MIGRATE_PERSIST_DEST,
+    'undefinesource' : libvirt.VIR_MIGRATE_UNDEFINE_SOURCE
+}
+
+
+def colored(string, color):
+    """
+    Fancy terminal color
+    """
+    return "\x1b[%sm%s\x1b[0m" % (COLORS[color], string)
+
+
 def luns(dom):
     """Xpath query to retrieve instance's disks from XML
     """
@@ -62,14 +88,11 @@ def _lvlist(lus):
     return [storage.lu(lun=l)['lv'] for l in lus]
 
 
-def printguest(host, dom):
+def printguest(dom):
     """Print a guest
     """
 
-    print "%s" % host.upper()
-
-    if dom.isPersistent:
-        print "    P",
+    persistent = dom.isPersistent and 'P' or 'N'
 
     lus = luns(dom)
     lvs = _lvlist(lus)
@@ -77,20 +100,25 @@ def printguest(host, dom):
     strlv = ''
     for lv in lvs:
         lu = storage.lu(lv=lv)
-        mask = '!'
+        mask = '!', 'red'
         if lu['masks']:
-            mask = '#'
+            mask = '#', 'green'
 
-        strlv += "%s(%s) " % (lv, lu[u'snapshotCount'])
+        strlv += "%s(%s%s) " % (colored(lv, 'white'), 
+                                colored(mask[0], mask[1]), 
+                                lu[u'snapshotCount'])
 
-        strlu = ' '.join(lus)
-        print "%s %s %s %s" % (mask, dom.name(), strlu, strlv)
+    strlu = ' '.join(lus)
+    print " {0:1} {1:26} {2:41} {3:40}".format(
+        persistent,
+        colored(dom.name(), 'light green'), 
+        strlu, 
+        strlv)
 
 
 def listguests(guest=None):
     """A guestlist representation
     """
-    devnull = open(os.devnull, 'w')
 
     for host in config.HOSTS:
 
@@ -99,13 +127,20 @@ def listguests(guest=None):
         if guest:
             try:
                 dom = conn.lookupByName(guest)
-                printguest(host, dom)
+
+                print "%s" % colored(host.upper(), 'light red')
+                printguest(dom)
+
+                break
             except libvirt.libvirtError, err:
                 continue
         else:
+            print "%s" % colored(host.upper(), 'light red')
+
             for did in conn.listDomainsID():
                 dom = conn.lookupByID(did)
-                printguest(host, dom)
+
+                printguest(dom)
 
 
 def main():
