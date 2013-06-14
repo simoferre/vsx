@@ -2,18 +2,18 @@
 """CLI for VSX
 
 Usage:
-  vsxcl.py info [ <guest> ]
-  vsxcl.py mask (set | rm) <guest> [ <host> ]
+  vsx info [ <guest> ]
+  vsx mask (set | rm) <guest> [ <host> ]
 
-  vsxcl.py (-h | --help)
-  vsxcl.py --version
+  vsx (-h | --help)
+  vsx --version
 
 Options:
   -h --help     Show this screen.
   --version     Show version.
 
 Try:
-  vsxcl.py mask set bmdw
+  vsx mask set bmdw
 
 """
 import libvirt
