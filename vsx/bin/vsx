@@ -134,7 +134,7 @@ def guests(host, guest=None):
     """Return a guestlist for a host
     """
 
-    conn = libvirt.open("qemu+ssh://%s/system" % host)
+    conn = libvirt.open("qemu+ssh://root@%s/system" % host)
 
     if guest:
         try:
