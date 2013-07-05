@@ -85,7 +85,7 @@ def _lvlist(lus):
     """Return the list of lvs of the guest
     """
 
-    return [storage.lu(lun=l)['lv'] for l in lus]
+    return [storage.lu(lun=l)['name'] for l in lus]
 
 
 def printguest(dom):
@@ -96,16 +96,15 @@ def printguest(dom):
     active = dom.isActive() and 'A' or 'I'
 
     lus = luns(dom)
-    lvs = _lvlist(lus)
 
     strlv = ''
-    for lv in lvs:
-        lu = storage.lu(lv=lv)
+    for lun in lus:
+        lu = storage.lu(lun=lun)
         mask = '!', 'red'
         if lu['masks']:
             mask = '#', 'green'
 
-        strlv += "%s(%s%s) " % (colored(lv, 'white'),
+        strlv += "%s(%s%s) " % (colored(lu["name"], 'white'),
                                 colored(mask[0], mask[1]),
                                 lu[u'snapshotCount'])
 
@@ -149,16 +148,22 @@ def mask(action, guest, host=None):
     """Set/remove appropriate masks to given host
     finding out the host it is running on
     """
-
-    doms = []
-    for host in config.HOSTS:
-        for dom in guests(host, guest):
+    for hst in config.HOSTS:
+        for dom in guests(hst, guest):
 
             if dom.isActive():
-                lus = luns(dom)
-                lvs = _lvlist(lus)
+                lvs = []
+                for lun in luns(dom):
+                    lun = storage.lu(lun=lun)
+                    lvs.append(lun["name"])
 
-                return getattr(storage, action)(lvs, host)
+                    # Se non ha i mask sull'host su cui e` attivo
+                    # non possiamo mascherare un'altro host
+                    if not lun["masks"] and host:
+                        return None
+                    
+                host_to_mask = host and host or hst
+                return getattr(storage, action)(lvs, host_to_mask)
 
     return None
 
@@ -191,8 +196,10 @@ def main():
     elif arguments["mask"]:
         action = lambda x: (x['set'] and 'setmask' or
                             x['rm'] and 'rmmask')
-
-        resp = mask(action(arguments), arguments["<guest>"])
+        
+        guest = arguments["<guest>"]
+        host = arguments["<host>"] and arguments["<host>"] or None
+        resp = mask(action(arguments), guest, host) 
 
         if not resp:
             print "No LV %s defined" % arguments["<guest>"]
