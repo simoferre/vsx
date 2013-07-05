@@ -35,8 +35,8 @@ class VSX(object):
         resp = requests.post(url, params=params, verify=False)
         self.cookies = dict(JSESSIONID=resp.cookies['JSESSIONID'])
 
-        self.luns = []
-        self.fetchluns()
+        self.lvs = []
+        self.fetchlvs()
 
     def url(self, path):
         """Build a url.
@@ -70,19 +70,17 @@ class VSX(object):
 
         return response
 
-    def fetchluns(self):
-        """Fetch luns info.
+    def fetchlvs(self):
+        """Fetch lvs info.
 
-        Gather all informations in self.luns.
+        Gather all informations in self.lvs.
         """
 
         url = self.url('fetch')
 
-        self.luns = []
-
         for shelf in SHELVES:
 
-            params = {'shelf': shelf, 'vsxlun': ''}
+            params = {'shelf': shelf, 'lv': ''}
             resp = requests.get(url,
                                 params=params,
                                 cookies=self.cookies,
@@ -94,7 +92,7 @@ class VSX(object):
             for el in info:
                 el.update({u'vsxshelf': shelf})
 
-            self.luns += info
+            self.lvs += info
 
     def lu(self, lun=None, lv=None):
         """Return a Logical Unit from either a LUN or a LV.
@@ -107,19 +105,14 @@ class VSX(object):
 
         if lun:
             (shelf, index) = map(int, lun.split('.'))
-            for lu in self.luns:
-                if (
-                    lu['index'] == index and
-                    lu['shelf'] == shelf and
-                    lu['vsxlun']
-                ):
+            for lu in self.lvs:
+                lun = lu['lvStatus']['exportedLun']
+
+                if lun['index'] == index and lun['shelf'] == shelf:
                     return lu
         if lv:
-            for lu in self.luns:
-                if (
-                    lu['lv'] == lv and
-                    lu['vsxlun']
-                ):
+            for lu in self.lvs:
+                if lu['name'] == lv:
                     return lu
 
     def hwaddr(self, server=None):
@@ -243,7 +236,19 @@ class TestVSX(unittest.TestCase):
         """
 
         self.assertEqual(self.vsx.lu(lun="105.55"), self.lu)
-        self.assertEqual(self.testlv["lv"], self.lu["lv"])
+        self.assertEqual(self.testlv["lv"], self.lu["name"])
+
+    def test_fetchlvs(self):
+        """
+        """
+        lvname1 = "testlv1"
+        lvname2 = "testlv2"
+
+        lu1 = self.vsx.lu(lv=lvname1)
+        lu2 = self.vsx.lu(lv=lvname2)
+
+        self.assertEqual(lu1["name"], lvname1)
+        self.assertEqual(lu2["name"], lvname2)
 
     def test_hwaddr(self):
         """
@@ -256,10 +261,10 @@ class TestVSX(unittest.TestCase):
         Test mask to one exsisting LV on one server
         """
 
-        resp = self.vsx.setmask([self.lu["lv"], ], self.server)
+        resp = self.vsx.setmask([self.lu["name"], ], self.server)
         self.assertEqual(resp.status_code, 200)
 
-        resp = self.vsx.rmmask([self.lu["lv"], ], self.server)
+        resp = self.vsx.rmmask([self.lu["name"], ], self.server)
         self.assertEqual(resp.status_code, 200)
 
     def test_2_servers_1_lv_mask(self):
@@ -269,11 +274,11 @@ class TestVSX(unittest.TestCase):
 
         server2 = "pacman"
 
-        resp = self.vsx.setmask([self.lu["lv"], ],
+        resp = self.vsx.setmask([self.lu["name"], ],
                                 serverlist=[self.server, server2])
         self.assertEqual(resp.status_code, 200)
 
-        resp = self.vsx.rmmask([self.lu["lv"], ],
+        resp = self.vsx.rmmask([self.lu["name"], ],
                                serverlist=[self.server, server2])
         self.assertEqual(resp.status_code, 200)
 
@@ -285,11 +290,11 @@ class TestVSX(unittest.TestCase):
         server2 = "pacman"
         lv2 = "testlv2"
 
-        resp = self.vsx.setmask([self.lu["lv"], lv2],
+        resp = self.vsx.setmask([self.lu["name"], lv2],
                                 serverlist=[self.server, server2])
         self.assertEqual(resp.status_code, 200)
 
-        resp = self.vsx.rmmask([self.lu["lv"], lv2],
+        resp = self.vsx.rmmask([self.lu["name"], lv2],
                                serverlist=[self.server, server2])
         self.assertEqual(resp.status_code, 200)
 
@@ -297,11 +302,11 @@ class TestVSX(unittest.TestCase):
         """
         Test mask twice the same lv
         """
-        resp = self.vsx.setmask([self.lu["lv"], ], self.server)
+        resp = self.vsx.setmask([self.lu["name"], ], self.server)
         self.assertEqual(resp.status_code, 200)
 
         # Set the same mask
-        resp = self.vsx.setmask([self.lu["lv"], ], self.server)
+        resp = self.vsx.setmask([self.lu["name"], ], self.server)
 
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.ok)
@@ -313,7 +318,7 @@ class TestVSX(unittest.TestCase):
         self.assertEqual(js["message"],
                          "mask 001b21185d84 exists on LV testlv1")
 
-        resp = self.vsx.rmmask([self.lu["lv"], ], self.server)
+        resp = self.vsx.rmmask([self.lu["name"], ], self.server)
         self.assertEqual(resp.status_code, 200)
 
     def test_rm_unmasked_lun(self):
@@ -321,7 +326,7 @@ class TestVSX(unittest.TestCase):
         Try to unmask a non-masked lv
         """
 
-        resp = self.vsx.rmmask([self.lu["lv"], ], self.server)
+        resp = self.vsx.rmmask([self.lu["name"], ], self.server)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.ok)
 
