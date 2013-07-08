@@ -1,8 +1,10 @@
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """CLI for VSX
 
 Usage:
   vsx info [ <guest> ]
+  vsx mask show <guest>
   vsx mask (set | rm) <guest> [ <host> ]
 
   vsx (-h | --help)
@@ -81,13 +83,6 @@ def luns(dom):
     return [os.path.basename(dev).strip('e') for dev in devices]
 
 
-def _lvlist(lus):
-    """Return the list of lvs of the guest
-    """
-
-    return [storage.lu(lun=l)['name'] for l in lus]
-
-
 def printguest(dom):
     """Print a guest
     """
@@ -144,6 +139,36 @@ def guests(host, guest=None):
         return [conn.lookupByID(did) for did in conn.listDomainsID()]
 
 
+def maskinfo(lun, exclude=None):
+    """Return a list of hosts masking the lun
+    """
+    hostnames = []
+    try:
+        macset = set(lun['masks'])
+    except TypeError:
+        return []
+
+    for host in config.HOSTS:
+        if set(storage.hwaddr(host)).issubset(macset):
+            if not exclude or host != exclude:
+                hostnames.append(host)
+
+    return hostnames
+
+
+def printmask(guest):
+    """Print maskinfo
+    """
+    for host in config.HOSTS:
+        for dom in guests(host, guest):
+            for lun in luns(dom):
+                hostlist = maskinfo(storage.lu(lun=lun))
+
+                if hostlist:
+                    print "%s: %s" % (colored(lun, 'white'),
+                                      colored(', '.join(hostlist), 'red'))
+
+
 def mask(action, guest, host=None):
     """Set/remove appropriate masks to given host
     finding out the host it is running on
@@ -157,13 +182,53 @@ def mask(action, guest, host=None):
                     lun = storage.lu(lun=lun)
                     lvs.append(lun["name"])
 
-                    # Se non ha i mask sull'host su cui e` attivo
-                    # non possiamo mascherare un'altro host
-                    if not lun["masks"] and host:
-                        return None
-                    
+                    # 1. Se non ha i mask sull'host su cui e` attivo
+                    #    non possiamo mascherare un altro host.
+                    # 2. Se ha i mask su un altro host non possiamo
+                    #    smascherare su quello attivo.
+                    if action == 'setmask':
+                        if not lun["masks"] and host:
+                            host = [hst, host]
+
+                    elif action == 'rmmask':
+                        try:
+                            other_masked_mac = set(lun["masks"]).difference(
+                                set(storage.hwaddr(hst)))
+                        except TypeError:
+                            print "No mask defined on guest %s" % guest
+                            exit(1)
+
+                        if other_masked_mac:
+
+                            if not host:
+                                hosts_to_unmask = []
+
+                                for other_host in config.HOSTS:
+                                    if (other_host != hst and
+                                        set(storage.hwaddr(other_host)).issubset(
+                                            other_masked_mac)):
+                                        hosts_to_unmask.append(other_host)
+
+                                hosts_to_unmask.append(hst)
+                                host = hosts_to_unmask
+
+                            if host and host == hst:
+                                hosts_to_unmask = maskinfo(lun, exclude=hst)
+
+                                if len(hosts_to_unmask) >= 1:
+                                    hosts_to_unmask.append(hst)
+                                    host = hosts_to_unmask
+
                 host_to_mask = host and host or hst
-                return getattr(storage, action)(lvs, host_to_mask)
+
+                if type(host_to_mask) == list:
+                    return getattr(storage, action)(lvs,
+                                                    serverlist=host_to_mask)
+                if type(host_to_mask) == str:
+                    return getattr(storage, action)(lvs,
+                                                    server=host_to_mask)
+
+                return None
 
     return None
 
@@ -194,14 +259,18 @@ def main():
     if arguments["info"]:
         info(arguments["<guest>"])
     elif arguments["mask"]:
+        if arguments["show"]:
+            printmask(arguments["<guest>"])
+            exit(0)
+
         action = lambda x: (x['set'] and 'setmask' or
                             x['rm'] and 'rmmask')
-        
+
         guest = arguments["<guest>"]
         host = arguments["<host>"] and arguments["<host>"] or None
-        resp = mask(action(arguments), guest, host) 
+        resp = mask(action(arguments), guest, host)
 
-        if not resp:
+        if None == resp:
             print "No LV %s defined" % arguments["<guest>"]
             exit(1)
 
