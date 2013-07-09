@@ -6,6 +6,7 @@ Usage:
   vsx info [ <guest> ]
   vsx mask show <guest>
   vsx mask (set | rm) <guest> [ <host> ]
+  vsx snap show [ <guest> ]
 
   vsx (-h | --help)
   vsx --version
@@ -164,6 +165,24 @@ def mask(action, guest, host=None):
     return None
 
 
+def snap(guest=None):
+    """Snapsched info.
+    """
+
+    for host in config.HOSTS:
+        for dom in guests(host, guest):
+            print "\n%s" % colored(dom.name().upper(), "red")
+
+            for lun in luns(dom):
+                lu = storage.lu(lun=lun)
+
+                snapscheds = lu["snapScheds"] or []
+
+                print "%s: %s" % (colored(lu["name"], "yellow"),
+                                  ', '.join([sched["stringRep"]
+                                             for sched in snapscheds]))
+
+
 def info(guest=None):
     """Print guest info to standard output.
 
@@ -264,6 +283,8 @@ def main():
             exit(1)
 
         printresp(resp)
+    elif arguments["snap"]:
+        snap(arguments["<guest>"])
 
 if __name__ == '__main__':
     main()
