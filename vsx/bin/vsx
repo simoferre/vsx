@@ -83,6 +83,121 @@ def luns(dom):
     return [os.path.basename(dev).strip('e') for dev in devices]
 
 
+def guests(host, guest=None):
+    """Return a guestlist for a host
+    """
+
+    conn = libvirt.open("qemu+ssh://root@%s/system" % host)
+
+    if guest:
+        try:
+            return [conn.lookupByName(guest), ]
+        except libvirt.libvirtError, err:
+            return []
+    else:
+        return [conn.lookupByID(did) for did in conn.listDomainsID()]
+
+
+def _maskinfo(macset, exclude=None):
+    """Return a list of hosts masking the lun
+    """
+    hostnames = []
+
+    for host in config.HOSTS:
+        if set(storage.hwaddr(host)).issubset(macset):
+            if not exclude or host != exclude:
+                hostnames.append(host)
+
+    return hostnames
+
+
+def mask(action, guest, host=None):
+    """Set/remove appropriate masks to given host
+    finding out the host it is running on
+    """
+    for hst in config.HOSTS:
+        for dom in guests(hst, guest):
+
+            if dom.isActive():
+                lvs = []
+                for lun in luns(dom):
+                    lun = storage.lu(lun=lun)
+                    lvs.append(lun["name"])
+
+                    # 1. Se non ha i mask sull'host su cui e` attivo
+                    #    non possiamo mascherare un altro host.
+                    # 2. Se ha i mask su un altro host non possiamo
+                    #    smascherare su quello attivo.
+                    if action == 'setmask':
+                        if not lun["masks"] and host:
+                            host = [hst, host]
+
+                    elif action == 'rmmask':
+                        try:
+                            other_masked_mac = set(lun["masks"]).difference(
+                                set(storage.hwaddr(hst)))
+                        except TypeError:
+                            print "No mask defined on guest %s" % guest
+                            exit(1)
+
+                        if other_masked_mac:
+
+                            if not host or host == hst:
+                                hosts_to_unmask = _maskinfo(other_masked_mac,
+                                                            exclude=hst)
+
+                                if len(hosts_to_unmask) >= 1:
+                                    hosts_to_unmask.append(hst)
+                                    host = hosts_to_unmask
+
+                host_to_mask = host and host or hst
+
+                if type(host_to_mask) == list:
+                    return getattr(storage, action)(lvs,
+                                                    serverlist=host_to_mask)
+                if type(host_to_mask) == str:
+                    return getattr(storage, action)(lvs,
+                                                    server=host_to_mask)
+
+                return None
+
+    return None
+
+
+def info(guest=None):
+    """Print guest info to standard output.
+
+    @param guest: the guest to represent.
+                  all guests if None.
+    """
+
+    for host in config.HOSTS:
+        doms = guests(host, guest)
+
+        if doms:
+            print colored(host.upper(), "light red")
+
+        for dom in doms:
+            printguest(dom)
+
+
+def printmask(guest):
+    """Print maskinfo
+    """
+    for host in config.HOSTS:
+        for dom in guests(host, guest):
+            for lun in luns(dom):
+                try:
+                    hostlist = _maskinfo(set(storage.lu(lun=lun)["masks"]))
+                except TypeError:
+                    print "No mask defined on guest %s" % guest
+                    exit(1)
+
+                if hostlist:
+                    print "%s: %s" % (colored(lun, 'white'),
+                                      colored(', '.join(hostlist), 'red'))
+
+
 def printguest(dom):
     """Print a guest
     """
@@ -122,132 +237,6 @@ def printresp(resp):
 
     js = resp.json()
     print config_state[js["configState"]], js["message"]
-
-
-def guests(host, guest=None):
-    """Return a guestlist for a host
-    """
-
-    conn = libvirt.open("qemu+ssh://root@%s/system" % host)
-
-    if guest:
-        try:
-            return [conn.lookupByName(guest), ]
-        except libvirt.libvirtError, err:
-            return []
-    else:
-        return [conn.lookupByID(did) for did in conn.listDomainsID()]
-
-
-def maskinfo(lun, exclude=None):
-    """Return a list of hosts masking the lun
-    """
-    hostnames = []
-    try:
-        macset = set(lun['masks'])
-    except TypeError:
-        return []
-
-    for host in config.HOSTS:
-        if set(storage.hwaddr(host)).issubset(macset):
-            if not exclude or host != exclude:
-                hostnames.append(host)
-
-    return hostnames
-
-
-def printmask(guest):
-    """Print maskinfo
-    """
-    for host in config.HOSTS:
-        for dom in guests(host, guest):
-            for lun in luns(dom):
-                hostlist = maskinfo(storage.lu(lun=lun))
-
-                if hostlist:
-                    print "%s: %s" % (colored(lun, 'white'),
-                                      colored(', '.join(hostlist), 'red'))
-
-
-def mask(action, guest, host=None):
-    """Set/remove appropriate masks to given host
-    finding out the host it is running on
-    """
-    for hst in config.HOSTS:
-        for dom in guests(hst, guest):
-
-            if dom.isActive():
-                lvs = []
-                for lun in luns(dom):
-                    lun = storage.lu(lun=lun)
-                    lvs.append(lun["name"])
-
-                    # 1. Se non ha i mask sull'host su cui e` attivo
-                    #    non possiamo mascherare un altro host.
-                    # 2. Se ha i mask su un altro host non possiamo
-                    #    smascherare su quello attivo.
-                    if action == 'setmask':
-                        if not lun["masks"] and host:
-                            host = [hst, host]
-
-                    elif action == 'rmmask':
-                        try:
-                            other_masked_mac = set(lun["masks"]).difference(
-                                set(storage.hwaddr(hst)))
-                        except TypeError:
-                            print "No mask defined on guest %s" % guest
-                            exit(1)
-
-                        if other_masked_mac:
-
-                            if not host:
-                                hosts_to_unmask = []
-
-                                for other_host in config.HOSTS:
-                                    if (other_host != hst and
-                                        set(storage.hwaddr(other_host)).issubset(
-                                            other_masked_mac)):
-                                        hosts_to_unmask.append(other_host)
-
-                                hosts_to_unmask.append(hst)
-                                host = hosts_to_unmask
-
-                            if host and host == hst:
-                                hosts_to_unmask = maskinfo(lun, exclude=hst)
-
-                                if len(hosts_to_unmask) >= 1:
-                                    hosts_to_unmask.append(hst)
-                                    host = hosts_to_unmask
-
-                host_to_mask = host and host or hst
-
-                if type(host_to_mask) == list:
-                    return getattr(storage, action)(lvs,
-                                                    serverlist=host_to_mask)
-                if type(host_to_mask) == str:
-                    return getattr(storage, action)(lvs,
-                                                    server=host_to_mask)
-
-                return None
-
-    return None
-
-
-def info(guest=None):
-    """Print guest info to standard output.
-
-    @param guest: the guest to represent.
-                  all guests if None.
-    """
-
-    for host in config.HOSTS:
-        doms = guests(host, guest)
-
-        if doms:
-            print colored(host.upper(), "light red")
-
-        for dom in doms:
-            printguest(dom)
 
 
 def main():
