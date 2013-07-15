@@ -230,12 +230,15 @@ def printguest(dom):
     for lun in lus:
         lu = storage.lu(lun=lun)
         mask = '!', 'red'
-        if lu['masks']:
-            mask = '#', 'green'
+        try:
+            if lu.get('masks'):
+                mask = '#', 'green'
 
-        strlv += "%s(%s%s) " % (colored(lu["name"], 'white'),
-                                colored(mask[0], mask[1]),
-                                lu[u'snapshotCount'])
+            strlv += "%s(%s%s) " % (colored(lu["name"], 'white'),
+                                    colored(mask[0], mask[1]),
+                                    lu[u'snapshotCount'])
+        except AttributeError:
+            pass
 
     strlu = ' '.join(lus)
     print " {0:1} {1:1} {2:26} {3:41} {4:40}".format(
