@@ -234,9 +234,9 @@ def printguest(dom):
             if lu.get('masks'):
                 mask = '#', 'green'
 
-            strlv += "%s(%s%s) " % (colored(lu["name"], 'white'),
+            strlv += "%s(%s%s) " % (colored(lu.get("name", ""), 'white'),
                                     colored(mask[0], mask[1]),
-                                    lu[u'snapshotCount'])
+                                    lu.get(u"snapshotCount", ""))
         except AttributeError:
             pass
 

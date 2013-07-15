@@ -115,9 +115,10 @@ class VSX(object):
                 if lu['name'] == lv:
                     return lu
 
+        return {}
+
     def hwaddr(self, server=None):
         """Return server's mac addresses
-
         """
 
         if server is None:
