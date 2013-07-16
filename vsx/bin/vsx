@@ -3,10 +3,11 @@
 """CLI for VSX
 
 Usage:
-  vsx info [ <guest> ]
+  vsx info [ <guest> ] [ -a ]
   vsx mask show <guest>
   vsx mask (set | rm) <guest> [ <host> ]
   vsx snap show [ <guest> ]
+  vsx lv <lvname>
 
   vsx (-h | --help)
   vsx --version
@@ -84,7 +85,7 @@ def luns(dom):
     return [os.path.basename(dev).strip('e') for dev in devices]
 
 
-def guests(host, guest=None):
+def guests(host, guest=None, alldoms=False):
     """Return a guestlist for a host
     """
 
@@ -96,7 +97,13 @@ def guests(host, guest=None):
         except libvirt.libvirtError, err:
             return []
     else:
-        return [conn.lookupByID(did) for did in conn.listDomainsID()]
+        active =  [conn.lookupByID(did) for did in conn.listDomainsID()]
+        if alldoms:
+            defined = [conn.lookupByName(name) 
+                       for name in conn.listDefinedDomains()]
+            return active + defined
+
+        return active
 
 
 def _maskinfo(macset, exclude=None):
@@ -176,14 +183,26 @@ def snap(guest=None):
             for lun in luns(dom):
                 lu = storage.lu(lun=lun)
 
-                snapscheds = lu["snapScheds"] or []
+                snapscheds = lu.get("snapScheds") or []
 
-                print "%s: %s" % (colored(lu["name"], "yellow"),
+                print "%s: %s" % (colored(lu.get("name"), "yellow"),
                                   ', '.join([sched["stringRep"]
                                              for sched in snapscheds]))
 
 
-def info(guest=None):
+
+def lv(lvname):
+    """Get domain from lv
+    """
+    
+    for host in config.HOSTS:
+        for dom in guests(host, alldoms=True):
+            for lun in luns(dom):
+                if lvname == storage.lu(lun=lun).get("name"):
+                    printguest(dom)
+
+    
+def info(guest=None, alldoms=False):
     """Print guest info to standard output.
 
     @param guest: the guest to represent.
@@ -191,7 +210,7 @@ def info(guest=None):
     """
 
     for host in config.HOSTS:
-        doms = guests(host, guest)
+        doms = guests(host, guest, alldoms)
 
         if doms:
             print colored(host.upper(), "light red")
@@ -268,7 +287,7 @@ def main():
     arguments = docopt(__doc__, version='CLI for VSX 0.1a')
 
     if arguments["info"]:
-        info(arguments["<guest>"])
+        info(arguments["<guest>"], arguments["-a"])
     elif arguments["mask"]:
         if arguments["show"]:
             printmask(arguments["<guest>"])
@@ -288,6 +307,8 @@ def main():
         printresp(resp)
     elif arguments["snap"]:
         snap(arguments["<guest>"])
+    elif arguments["lv"]:
+        lv(arguments["<lvname>"])
 
 if __name__ == '__main__':
     main()
