@@ -8,6 +8,7 @@ Usage:
   vsx mask (set | rm) <guest> [ <host> ]
   vsx snap show [ <guest> ]
   vsx lv <lvname>
+  vsx csv
 
   vsx (-h | --help)
   vsx --version
@@ -38,7 +39,7 @@ libvirt.registerErrorHandler(errorHandler, None)
 
 storage = VSX()
 
-
+GIGA = 1000000000
 COLORS = {
     'black': '0;30', 'dark gray': '1;30',
     'blue': '0;34', 'light blue': '1;34',
@@ -97,9 +98,10 @@ def guests(host, guest=None, alldoms=False):
         except libvirt.libvirtError, err:
             return []
     else:
-        active =  [conn.lookupByID(did) for did in conn.listDomainsID()]
+        active = [conn.lookupByID(did) for did in conn.listDomainsID()]
+
         if alldoms:
-            defined = [conn.lookupByName(name) 
+            defined = [conn.lookupByName(name)
                        for name in conn.listDefinedDomains()]
             return active + defined
 
@@ -190,18 +192,17 @@ def snap(guest=None):
                                              for sched in snapscheds]))
 
 
-
 def lv(lvname):
     """Get domain from lv
     """
-    
+
     for host in config.HOSTS:
         for dom in guests(host, alldoms=True):
             for lun in luns(dom):
                 if lvname == storage.lu(lun=lun).get("name"):
                     printguest(dom)
 
-    
+
 def info(guest=None, alldoms=False):
     """Print guest info to standard output.
 
@@ -217,6 +218,19 @@ def info(guest=None, alldoms=False):
 
         for dom in doms:
             printguest(dom)
+
+
+def csv():
+    """Print a CSV file filled with guests info.
+    """
+
+    print "HOST,GUEST,PERSISTENT,ACTIVE,LUN,LV,MASK,SNAP,POOL,SIZE"
+
+    for host in config.HOSTS:
+        doms = guests(host, alldoms=True)
+
+        for dom in doms:
+            printcsv(host, dom)
 
 
 def printmask(guest):
@@ -236,6 +250,10 @@ def printmask(guest):
                                       colored(', '.join(hostlist), 'red'))
 
 
+
+giga = lambda x: x != "" and str(int(x) / GIGA) or 0
+
+
 def printguest(dom):
     """Print a guest
     """
@@ -244,7 +262,7 @@ def printguest(dom):
     active = dom.isActive() and 'A' or 'I'
 
     lus = luns(dom)
-
+    
     strlv = ''
     for lun in lus:
         lu = storage.lu(lun=lun)
@@ -253,9 +271,11 @@ def printguest(dom):
             if lu.get('masks'):
                 mask = '#', 'green'
 
-            strlv += "%s(%s%s) " % (colored(lu.get("name", ""), 'white'),
-                                    colored(mask[0], mask[1]),
-                                    lu.get(u"snapshotCount", ""))
+            strlv += "%s(%s%s - %s - %s) " % (colored(lu.get("name", ""), 'white'),
+                                              colored(mask[0], mask[1]),
+                                              lu.get(u"snapshotCount", ""),
+                                              colored(lu.get("containingPool", ""), "light cyan"),
+                                              colored(giga(lu.get("rawSize", "")), "light purple"))
         except AttributeError:
             pass
 
@@ -268,13 +288,41 @@ def printguest(dom):
         strlv)
 
 
+def printcsv(host, dom):
+    """Csv version of printguest
+    """
+    
+    persistent = dom.isPersistent and 'P' or 'N'
+    active = dom.isActive() and 'A' or 'I'
+
+    lus = luns(dom)
+
+    strlv = ''
+
+    for lun in lus:
+        lu = storage.lu(lun=lun)
+        mask = lu.get('masks') and 'M' or 'U'
+
+        print "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s" % (host, 
+                                                 dom.name(),
+                                                 persistent,
+                                                 active,
+                                                 lun,
+                                                 lu.get("name", ""),
+                                                 mask,
+                                                 lu.get(u"snapshotCount", ""),
+                                                 lu.get("containingPool", ""),
+                                                 giga(lu.get("rawSize", "")))
+
+                                                      
+
 def printresp(resp):
     """Represent HTTP response
     """
 
     config_state = {
         "completedSuccessfully": "Completed successfully",
-        "completedFailed": "Failed:"}
+        "completedFailed": "Failed:" }
 
     js = resp.json()
     print config_state[js["configState"]], js["message"]
@@ -288,6 +336,7 @@ def main():
 
     if arguments["info"]:
         info(arguments["<guest>"], arguments["-a"])
+
     elif arguments["mask"]:
         if arguments["show"]:
             printmask(arguments["<guest>"])
@@ -305,10 +354,15 @@ def main():
             exit(1)
 
         printresp(resp)
+
     elif arguments["snap"]:
         snap(arguments["<guest>"])
+
     elif arguments["lv"]:
         lv(arguments["<lvname>"])
+
+    elif arguments["csv"]:
+        csv()
 
 if __name__ == '__main__':
     main()
