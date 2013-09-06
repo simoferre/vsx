@@ -4,4 +4,4 @@ esm_user = "admin"
 esm_password = "********"
 SHELVES = ['96', '1096']
 HOSTS=['mirrina', 'church', 'pong', 'pacman',
-       'tetris', 'tron', 'doom', 'toki']
+       'tetris', 'tron', 'doom', 'toki', 'dub']
