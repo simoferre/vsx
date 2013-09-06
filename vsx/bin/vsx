@@ -8,6 +8,7 @@ Usage:
   vsx mask (set | rm) <guest> [ <host> ]
   vsx snap show [ <guest> ]
   vsx lv <lvname>
+  vsx (suspend | resume) [ <shelf> ]
   vsx csv
 
   vsx (-h | --help)
@@ -58,6 +59,11 @@ FLAGS = {
     'undefinesource': libvirt.VIR_MIGRATE_UNDEFINE_SOURCE
 }
 
+# Accordingly to libvirt documentation, a domain is
+# running if it's in the state 1 and paused if in the
+# state 3
+RUNNING = 1
+PAUSED = 3
 
 def colored(string, color):
     """
@@ -192,6 +198,74 @@ def snap(guest=None):
                                              for sched in snapscheds]))
 
 
+def _act_on_guests(shelf, action):
+    """Suspend/resume all instances running on a given SRX.
+
+    If no SRX is given, pause/resume all instances.
+    """
+
+    past = {"resume": "resumed",
+            "suspend": "suspended"}
+
+    def act_on_dom(dom, action):
+        """Perform the actual suspend/resume action
+        """
+
+        state = dom.info()[0]
+
+        if (state == PAUSED and action == "suspend") or \
+           (state == RUNNING and action == "resume"):
+            print "WARNING: you try to %s a domain (%s) already %s" % (
+                action, dom.name(), past[action])
+        else:
+            if 0 != getattr(dom, action)():
+                print "ERROR: %s didn't work properly on domain %s" % (
+                    action, dom.name())
+            else:
+                print "Domain %s %s" % (dom.name(), past[action])
+
+
+    if action not in ("suspend", "resume"):
+        print "ERROR: no such action to perform"
+        exit(1)
+
+    pools_dict = storage.shelves()
+
+    for host in config.HOSTS:
+        for dom in guests(host):
+            if not shelf:
+                act_on_dom(dom, action)
+                #print "Domain %s %sed" % (dom.name(), action)
+            else:
+                for lun in luns(dom):
+                    pool = storage.lu(lun=lun).get("containingPool")
+                    try:
+                        if pool in pools_dict[shelf]:
+                            act_on_dom(dom, action)
+                            #print "Domain %s %s on pool %s" % (
+                            #    dom.name(), action, pool)
+                            break
+                    except KeyError:
+                        print "ERROR: %s is not a shelf defined" % shelf
+                        exit(1)
+
+    return
+
+
+def suspend(shelf=None):
+    """Suspend all instance running on a given SRX shelf
+    """
+
+    _act_on_guests(shelf, "suspend")
+
+
+def resume(shelf=None):
+    """Resume all instance running on a given SRX shelf
+    """
+
+    _act_on_guests(shelf, "resume")
+
+
 def lv(lvname):
     """Get domain from lv
     """
@@ -250,7 +324,6 @@ def printmask(guest):
                                       colored(', '.join(hostlist), 'red'))
 
 
-
 giga = lambda x: x != "" and str(int(x) / GIGA) or 0
 
 
@@ -262,7 +335,7 @@ def printguest(dom):
     active = dom.isActive() and 'A' or 'I'
 
     lus = luns(dom)
-    
+
     strlv = ''
     for lun in lus:
         lu = storage.lu(lun=lun)
@@ -271,11 +344,12 @@ def printguest(dom):
             if lu.get('masks'):
                 mask = '#', 'green'
 
-            strlv += "%s(%s%s - %s - %s) " % (colored(lu.get("name", ""), 'white'),
-                                              colored(mask[0], mask[1]),
-                                              lu.get(u"snapshotCount", ""),
-                                              colored(lu.get("containingPool", ""), "light cyan"),
-                                              colored(giga(lu.get("rawSize", "")), "light purple"))
+            strlv += "%s(%s%s - %s - %s) " % (
+                colored(lu.get("name", ""), 'white'),
+                colored(mask[0], mask[1]),
+                lu.get(u"snapshotCount", ""),
+                colored(lu.get("containingPool", ""), "light cyan"),
+                colored(giga(lu.get("rawSize", "")), "light purple"))
         except AttributeError:
             pass
 
@@ -291,7 +365,7 @@ def printguest(dom):
 def printcsv(host, dom):
     """Csv version of printguest
     """
-    
+
     persistent = dom.isPersistent and 'P' or 'N'
     active = dom.isActive() and 'A' or 'I'
 
@@ -303,7 +377,7 @@ def printcsv(host, dom):
         lu = storage.lu(lun=lun)
         mask = lu.get('masks') and 'M' or 'U'
 
-        print "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s" % (host, 
+        print "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s" % (host,
                                                  dom.name(),
                                                  persistent,
                                                  active,
@@ -314,7 +388,6 @@ def printcsv(host, dom):
                                                  lu.get("containingPool", ""),
                                                  giga(lu.get("rawSize", "")))
 
-                                                      
 
 def printresp(resp):
     """Represent HTTP response
@@ -322,7 +395,7 @@ def printresp(resp):
 
     config_state = {
         "completedSuccessfully": "Completed successfully",
-        "completedFailed": "Failed:" }
+        "completedFailed": "Failed:"}
 
     js = resp.json()
     print config_state[js["configState"]], js["message"]
@@ -363,6 +436,13 @@ def main():
 
     elif arguments["csv"]:
         csv()
+
+    elif arguments["suspend"]:
+        suspend(arguments["<shelf>"])
+
+    elif arguments["resume"]:
+        resume(arguments["<shelf>"])
+
 
 if __name__ == '__main__':
     main()

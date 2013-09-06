@@ -94,6 +94,40 @@ class VSX(object):
 
             self.lvs += info
 
+    def shelves(self):
+        """Fetch all pools and returns a map SRX shelf/pool.
+
+        It tells which pool(s) is contained by a shelf.
+        """
+
+        shelves = {}
+        url = self.url('fetch')
+
+        params = {'shelf': '',
+                  'srlun': ''}
+
+        resp = requests.get(url,
+                            params=params,
+                            cookies=self.cookies,
+                            verify=False)
+
+        json_resp = json.loads(resp.text)
+
+        for res in json_resp:
+            replies = res[1]["reply"]
+
+            if replies[0] is not None:
+                for reply in replies:
+                    shelf = str(reply['shelf'])
+                    pool = reply['pool']
+
+                    try:
+                        shelves[shelf].add(pool)
+                    except KeyError:
+                        shelves[shelf] = set([pool, ])
+
+        return shelves
+
     def lu(self, lun=None, lv=None):
         """Return a Logical Unit from either a LUN or a LV.
 
@@ -337,6 +371,15 @@ class TestVSX(unittest.TestCase):
         self.assertEqual(js["configState"], "completedFailed")
         self.assertEqual(js["message"],
                          "mask 001b21185d84 does not exist on LV testlv1")
+
+    def test_shelves(self):
+        """
+        Check the correctness of the shelves data structure
+        """
+        shv = self.vsx.shelves()
+
+        self.assertEqual(shv["50"], set(["db", "shadow"]))
+
 
 if __name__ == "__main__":
     unittest.main()
