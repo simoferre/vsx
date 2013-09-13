@@ -159,7 +159,7 @@ class VSX(object):
             raise Exception("Cannot set mask: `server´")
 
         url = self.url('fetch')
-        params = {'hba': '', 'groups': ''}
+        params = {'hba': ''}
 
         resp = requests.get(url,
                             params=params,
@@ -168,7 +168,9 @@ class VSX(object):
 
         info = json.loads(resp.text)[0][1]['reply']
 
-        return [elem['macAddr'] for elem in info if elem['server'] == server]
+        return [elem['macAddr']
+                for elem in info
+                if elem['serverName'] == server]
 
     def _mask(self, operation, lvlist, server, serverlist):
         """Actually perform a (rm)mask operation.
