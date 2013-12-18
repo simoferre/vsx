@@ -34,11 +34,13 @@ python setup.py install
 
 ## Documentation
 To generate documentation use epydoc packages:
+
 ```bash
 cd path/to/vsx
 epydoc --html -o docs vsx.py
 ```
 Read epydoc manual for other output formats and options:
+
 ```bash
 epydoc -h
 ```
@@ -46,4 +48,4 @@ To install the epydoc package on:
 ```bash
 sudo pip install epydoc
 ```
-or download the installation package from [Epydoc](http://epydoc.sourceforge.net/) and follow the instructions.
+or download the installation package from [Epydoc](http://epydoc.sourceforge.net/) and follow the instructions.
