@@ -45,6 +45,7 @@ Read epydoc manual for other output formats and options:
 epydoc -h
 ```
 To install the epydoc package on:
+
 ```bash
 sudo pip install epydoc
 ```
