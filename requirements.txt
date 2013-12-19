@@ -1,4 +1,0 @@
-lxml
-docopt
-requests
-simplejson
