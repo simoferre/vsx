@@ -12,27 +12,41 @@ vsx lv <lvname>
 vsx (suspend | resume) [ <shelf> ]
 vsx csv
 ```
-## Install
 
-### Global installation
+Global installation
+-------------------
 ```bash
 git clone git@git.galliera.it:virtualization/vsx.git
 cd vsx
 sudo pip install -r requirements.txt
+```
+Edit the file `vsx/config.py` with the esm hostname,
+the esm user and password, the hosts and the vsx shelves you want
+to manage and then run
+
+```bash
 sudo python setup.py install
 ```
 
-### Inside a virtualenv
+Inside a virtualenv
+-------------------
 ```bash
 git clone git@git.galliera.it:virtualization/vsx.git
 cd vsx
 virtualenv .
 . bin/activate
 pip install -r requirements.txt
+```
+Edit the file `vsx/config.py` with the esm hostname,
+the esm user and password, the hosts and the vsx shelves you want
+to manage and then run
+
+```bash
 python setup.py install
 ```
 
-## Documentation
+Documentation
+-------------
 To generate documentation use epydoc packages:
 
 ```bash
