@@ -1,8 +1,8 @@
 # VSX
 A python library and CLI to inspect CORAID disks mounted on libvirt domains.
 
-Usage of `vsx` cli
-------------------
+## Usage of `vsx` cli
+
 ```bash
 vsx info [ <guest> ] [ -a ]
 vsx mask show <guest>
@@ -13,40 +13,44 @@ vsx (suspend | resume) [ <shelf> ]
 vsx csv
 ```
 
-Global installation
--------------------
+## Install
+
+On a Debian machine:
+
 ```bash
 git clone git@git.galliera.it:virtualization/vsx.git
 cd vsx
-sudo pip install -r requirements.txt
+sudo make dep
 ```
 Edit the file `vsx/config.py` with the esm hostname,
 the esm user and password, the hosts and the vsx shelves you want
 to manage and then run
+
+```bash
+sudo make install
+```
+
+As an alternative, you can install the program manually running:
 
 ```bash
 sudo python setup.py install
 ```
 
-Inside a virtualenv
--------------------
-```bash
-git clone git@git.galliera.it:virtualization/vsx.git
-cd vsx
-virtualenv .
-. bin/activate
-pip install -r requirements.txt
-```
-Edit the file `vsx/config.py` with the esm hostname,
-the esm user and password, the hosts and the vsx shelves you want
-to manage and then run
+But keep in mind that you have to provide the following dependencies:
 
-```bash
-python setup.py install
-```
+- setuptools
+- pip
+- libxml2
+- libxslt
+- libpython2.7
+- zlib1g
+- pkg-config
+- libvirt-dev
+- libvirt-bin
 
-Documentation
--------------
+
+## Documentation
+
 To generate documentation use epydoc packages:
 
 ```bash
