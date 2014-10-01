@@ -22,6 +22,7 @@ Try:
   vsx mask set bmdw
 
 """
+import subprocess
 import libvirt
 import os
 
@@ -406,6 +407,24 @@ def main():
     """
 
     arguments = docopt(__doc__, version='CLI for VSX 0.1a')
+
+    def __host_down(host):
+        """Check if a host is down"""
+
+        ping = ["ping", "-c", "1", host]
+        output = subprocess.Popen(
+            ping, stdout = subprocess.PIPE).communicate()[0]
+
+        if "Unreachable" in output:
+            return True
+
+        return False
+
+
+    for host in config.HOSTS:
+        if __host_down(host):
+            config.HOSTS.remove(host)
+            print "Host %s is unreachable. Removed from hostlist" % host
 
     if arguments["info"]:
         info(arguments["<guest>"], arguments["-a"])
