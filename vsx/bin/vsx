@@ -214,8 +214,8 @@ def _act_on_guests(shelf, action):
 
         state = dom.info()[0]
 
-        if (state == PAUSED and action == "suspend") or \
-           (state == RUNNING and action == "resume"):
+        if ((state == PAUSED and action == "suspend") or
+            (state == RUNNING and action == "resume")):
             print "WARNING: you try to %s a domain (%s) already %s" % (
                 action, dom.name(), past[action])
         else:
@@ -236,15 +236,12 @@ def _act_on_guests(shelf, action):
         for dom in guests(host):
             if not shelf:
                 act_on_dom(dom, action)
-                #print "Domain %s %sed" % (dom.name(), action)
             else:
                 for lun in luns(dom):
                     pool = storage.lu(lun=lun).get("containingPool")
                     try:
                         if pool in pools_dict[shelf]:
                             act_on_dom(dom, action)
-                            #print "Domain %s %s on pool %s" % (
-                            #    dom.name(), action, pool)
                             break
                     except KeyError:
                         print "ERROR: %s is not a shelf defined" % shelf
