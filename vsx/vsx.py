@@ -16,7 +16,7 @@ class VSX(object):
     Class representing VSXes
     """
 
-    def __init__(self):
+    def __init__(self, user=esm_user, password=esm_password):
         """The VSX constructor.
 
         It logs on the ESM, stores
@@ -24,8 +24,6 @@ class VSX(object):
         the VSX aplliances.
         """
 
-        user = esm_user
-        password = esm_password
         url = self.url('admin')
         params = {'op': 'login',
                   'username': user,
@@ -127,6 +125,60 @@ class VSX(object):
                         shelves[shelf] = set([pool, ])
 
         return shelves
+
+    def pvs(self):
+        pvs_dict = {
+            "96":{
+                "size": 0,
+                "free_size": 0,
+                "pools": []
+            },
+            "1096": {
+                "size": 0,
+                "free_size": 0,
+                "pools": []
+            },
+            "total_size": 0,
+            "total_free_size": 0
+        }
+
+        url = self.url('fetch')
+        lun_format = lambda x, y: '.'.join([str(x), str(y)])
+        total_length = 0
+
+        for shelf in SHELVES:
+            pv_params = {'shelf': shelf, 'pool': '', 'pv': ''}
+            pv = requests.get(url,
+                              params=pv_params,
+                              cookies=self.cookies,
+                              verify=False)
+
+            pv_resp = json.loads(pv.text)
+
+            for r in pv_resp[0][1]["reply"]:
+                d = {
+                    "name": r["poolName"],
+                    "lun": lun_format(r["lunShelf"], str(r["lunNum"])),
+                    "total": r["status"]["totalLength"],
+                    "free": r["status"]["freeExtents"],
+                    "percent": r["status"]["percentUsed"],
+                    "status": r["status"]["state"],
+                    "mirror": None
+                }
+
+                if r["mirrored"]:
+                    d["mirror"] = lun_format(r["mirrorShelf"], r["mirrorLunNum"])
+
+                pvs_dict["total_size"] += d["total"]
+                pvs_dict["total_free_size"] += d["free"]
+
+                pvs_dict[shelf]["size"] += d["total"]
+                pvs_dict[shelf]["free_size"] += d["free"]
+
+                pvs_dict[shelf]["pools"].append(d)
+
+        return pvs_dict
+
 
     def lu(self, lun=None, lv=None):
         """Return a Logical Unit from either a LUN or a LV.
@@ -238,7 +290,7 @@ class TestVSX(unittest.TestCase):
 
     def setUp(self):
 
-        self.vsx = VSX()
+        self.vsx = VSX('********', '********')
         self.lu = self.vsx.lu(lv="testlv1")
 
         self.server = "mirrina"
@@ -380,7 +432,22 @@ class TestVSX(unittest.TestCase):
         """
         shv = self.vsx.shelves()
 
-        self.assertEqual(shv["50"], set(["db", "shadow"]))
+        self.assertEqual(shv["50"], set(["", "shadow", "documenti"]))
+
+    def test_pvs(self):
+        """
+        Check the correctness of the shelves data structure
+        """
+        pvs = self.vsx.pvs()
+
+        assert("1096" in pvs.keys())
+
+        for s in SHELVES:
+            for p in pvs[s]["pools"]:
+                if p["status"] == "mirrored":
+                    assert(p["mirror"])
+                else:
+                    assert(not p["mirror"])
 
 
 if __name__ == "__main__":

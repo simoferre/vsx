@@ -10,6 +10,7 @@ Usage:
   vsx lv <lvname>
   vsx (suspend | resume) [ <shelf> ]
   vsx csv
+  vsx pvs
 
   vsx (-h | --help)
   vsx --version
@@ -275,6 +276,32 @@ def lv(lvname):
                     printguest(dom)
 
 
+def pvs():
+    """PVs info
+    """
+
+    pvs = storage.pvs()
+    for shelf in config.SHELVES:
+        print colored(shelf, "light red")
+
+        for pv in pvs[shelf]["pools"]:
+            printpv(pv)
+
+        print
+        print "size managed by shelf: %sGB (free %sGB)" % (
+            size(str(pvs[shelf]["size"])),
+            size(str(pvs[shelf]["free_size"]))
+        )
+        print
+
+    print "Total size: %sGB (free %sGB)" % (
+        size(str(pvs["total_size"])),
+        size(str(pvs["total_free_size"]))
+    )
+
+    return
+
+
 def info(guest=None, alldoms=False):
     """Print guest info to standard output.
 
@@ -387,6 +414,31 @@ def printcsv(host, dom):
                                                  giga(lu.get("rawSize", "")))
 
 
+size = lambda x: ".".join([x[:-3], x[-3:]])
+
+
+def printpv(pv):
+    """Print pv
+    """
+    string = "{0:10} {1:5}".format(
+        pv["name"], pv["lun"]
+    )
+
+    if pv["status"] == "mirrored":
+        string += "{0:8}".format("("+pv["mirror"]+")")
+    else:
+        string += "{0:8}".format("")
+
+    string += "{0:12} {1:12} {2:3} {3:8}".format(
+        size(str(pv["total"])) + "GB",
+        size(str(pv["free"])) + "GB",
+        str(pv["percent"]) + "%",
+        pv["status"]
+    )
+
+    print string
+
+
 def printresp(resp):
     """Represent HTTP response
     """
@@ -458,6 +510,9 @@ def main():
 
     elif arguments["resume"]:
         resume(arguments["<shelf>"])
+
+    elif arguments["pvs"]:
+        pvs()
 
 
 if __name__ == '__main__':
