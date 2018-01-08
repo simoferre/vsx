@@ -31,7 +31,13 @@ class VSX(object):
 
         # Login and acquire cookie
         resp = requests.post(url, params=params, verify=False)
-        self.cookies = dict(JSESSIONID=resp.cookies['JSESSIONID'])
+
+        try:
+            self.cookies = dict(JSESSIONID=resp.cookies['JSESSIONID'])
+        except KeyError:
+            print "Autenticazione errata, modifica il config nella directory" \
+            "/usr/local/lib/python2.7/dist-packages/VSX-0.1dev_r0-py2.7.egg/vsx/"
+            exit(1)
 
         self.lvs = []
         self.fetchlvs()
