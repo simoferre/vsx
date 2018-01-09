@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+ -*- coding: utf-8 -*-
 
 """
 Info su lun e lv del VSX
@@ -132,8 +132,27 @@ class VSX(object):
 
         return shelves
 
-    def pvs(self):
-        pvs_dict = {
+    def __pool_dict(self, resp):
+        d = {
+            "name": resp["poolName"],
+            "shelf": resp["lunShelf"],
+            "lun": resp["lunNum"],
+            "total": resp["status"]["totalLength"],
+            "free": resp["status"]["freeExtents"],
+            "percent": resp["status"]["percentUsed"],
+            "status": resp["status"]["state"],
+            "mshelf": None,
+            "mlun": None
+        }
+
+        if resp["mirrored"]:
+            d["mshelf"] = resp["mirrorShelf"]
+            d["mlun"] = resp["mirrorLunNum"]
+
+        return d
+
+    def pools(self):
+        pools_dict = {
             "96":{
                 "size": 0,
                 "free_size": 0,
@@ -161,29 +180,57 @@ class VSX(object):
             pv_resp = json.loads(pv.text)
 
             for r in pv_resp[0][1]["reply"]:
-                d = {
-                    "name": r["poolName"],
-                    "shelf": r["lunShelf"],
+                pool = self.__pool_dict(r)
+
+                pools_dict["total_size"] += pool["total"]
+                pools_dict["total_free_size"] += pool["free"]
+
+                pools_dict[shelf]["size"] += pool["total"]
+                pools_dict[shelf]["free_size"] += pool["free"]
+
+                pools_dict[shelf]["pools"].append(pool)
+
+        return pools_dict
+
+
+    def pvs(self):
+        pvs_dict = {}
+        url = self.url('fetch')
+
+        for shelf in SHELVES:
+            pv_params = {'shelf': shelf, 'pool': '', 'pv': ''}
+            pv = requests.get(url,
+                              params=pv_params,
+                              cookies=self.cookies,
+                              verify=False)
+
+            pv_resp = json.loads(pv.text)
+
+            for r in pv_resp[0][1]["reply"]:
+                pv = {
                     "lun": r["lunNum"],
                     "total": r["status"]["totalLength"],
                     "free": r["status"]["freeExtents"],
                     "percent": r["status"]["percentUsed"],
-                    "status": r["status"]["state"],
-                    "mshelf": None,
-                    "mlun": None
                 }
 
+                try:
+                    pvs_dict[r["lunShelf"]].append(pv)
+                except KeyError:
+                    pvs_dict[r["lunShelf"]] = [pv, ]
+
                 if r["mirrored"]:
-                    d["mshelf"] = r["mirrorShelf"]
-                    d["mlun"] = r["mirrorLunNum"]
+                    mpv = {
+                        "lun": r["mirrorLunNum"],
+                        "total": r["status"]["totalLength"],
+                        "free": r["status"]["freeExtents"],
+                        "percent": r["status"]["percentUsed"],
+                    }
 
-                pvs_dict["total_size"] += d["total"]
-                pvs_dict["total_free_size"] += d["free"]
-
-                pvs_dict[shelf]["size"] += d["total"]
-                pvs_dict[shelf]["free_size"] += d["free"]
-
-                pvs_dict[shelf]["pools"].append(d)
+                    try:
+                        pvs_dict[r["mirrorShelf"]].append(mpv)
+                    except KeyError:
+                        pvs_dict[r["mirrorShelf"]] = [mpv, ]
 
         return pvs_dict
 
@@ -446,16 +493,16 @@ class TestVSX(unittest.TestCase):
 
         self.assertEqual(shv["50"], set(["", "shadow", "documenti"]))
 
-    def test_pvs(self):
+    def test_pools(self):
         """
         Check the correctness of the shelves data structure
         """
-        pvs = self.vsx.pvs()
+        pools = self.vsx.pools()
 
-        assert("1096" in pvs.keys())
+        assert("1096" in pools.keys())
 
         for s in SHELVES:
-            for p in pvs[s]["pools"]:
+            for p in pools[s]["pools"]:
                 if p["status"] == "mirrored":
                     assert(p["mshelf"])
                 else:

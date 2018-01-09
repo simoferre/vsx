@@ -11,6 +11,7 @@ Usage:
   vsx (suspend | resume) [ <shelf> ]
   vsx csv
   vsx pvs
+  vsx pools
 
   vsx (-h | --help)
   vsx --version
@@ -66,6 +67,7 @@ FLAGS = {
 # state 3
 RUNNING = 1
 PAUSED = 3
+
 
 def colored(string, color):
     """
@@ -276,28 +278,56 @@ def lv(lvname):
                     printguest(dom)
 
 
-def pvs():
-    """PVs info
+def pools():
+    """Pools info
     """
 
-    pvs = storage.pvs()
+    pools = storage.pools()
     for shelf in config.SHELVES:
         print colored(shelf, "light red")
 
-        for pv in pvs[shelf]["pools"]:
-            printpv(pv)
+        for pool in pools[shelf]["pools"]:
+            printpool(pool)
 
         print
         print "size managed by shelf: %sGB (free %sGB)" % (
-            size(str(pvs[shelf]["size"])),
-            size(str(pvs[shelf]["free_size"]))
+            size(str(pools[shelf]["size"])),
+            size(str(pools[shelf]["free_size"]))
         )
         print
 
     print "Total size: %sGB (free %sGB)" % (
-        size(str(pvs["total_size"])),
-        size(str(pvs["total_free_size"]))
+        size(str(pools["total_size"])),
+        size(str(pools["total_free_size"]))
     )
+
+    return
+
+
+def pvs():
+    """PVs info
+    """
+    for shelf, luns in storage.pvs().items():
+        total_size = free_size = 0
+        string = ''
+        for lun in sorted(luns, key=lambda x: x["lun"]):
+            string += "{0:1} {1:12} {2:11} {3:4}\n".format(
+                lun["lun"],
+                size(str(lun["total"]))+"GB",
+                size(str(lun["free"]))+"GB",
+                str(lun["percent"])+"%"
+            )
+
+            total_size += lun["total"]
+            free_size += lun["free"]
+
+        string += '\n'
+        print "Shelf: %s (%s %s)" %(
+            colored(shelf, "light red"),
+            size(str(total_size))+"GB",
+            size(str(free_size))+"GB"
+        )
+        print string
 
     return
 
@@ -332,6 +362,49 @@ def csv():
             printcsv(host, dom)
 
 
+# Printing utilities
+giga = lambda x: x != "" and str(int(x) / GIGA) or 0
+size = lambda x: ".".join([x[:-3], x[-3:]])
+
+
+def __prepare_to_print(host, dom):
+    """
+    """
+    persistent = dom.isPersistent and 'P' or 'N'
+    active = dom.isActive() and 'A' or 'I'
+    retlist = []
+
+    lus = luns(dom)
+
+    strlv = ''
+
+    for lun in lus:
+        lu = storage.lu(lun=lun)
+        mask = lu.get('masks') and 'M' or 'U'
+
+        retlist.append((
+            host,
+            dom.name(),
+            persistent,
+            active,
+            lun,
+            lu.get("name", ""),
+            mask,
+            lu.get(u"snapshotCount", ""),
+            lu.get("containingPool", ""),
+            giga(lu.get("rawSize", ""))
+        ))
+
+    return retlist
+
+
+def printcsv(host, dom):
+    """Csv version of printguest
+    """
+    for el in __prepare_to_print(host, dom):
+        print "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s" % el
+
+
 def printmask(guest):
     """Print maskinfo
     """
@@ -347,9 +420,6 @@ def printmask(guest):
                 if hostlist:
                     print "%s: %s" % (colored(lun, 'white'),
                                       colored(', '.join(hostlist), 'red'))
-
-
-giga = lambda x: x != "" and str(int(x) / GIGA) or 0
 
 
 def printguest(dom):
@@ -387,53 +457,27 @@ def printguest(dom):
         strlv)
 
 
-def printcsv(host, dom):
-    """Csv version of printguest
-    """
-
-    persistent = dom.isPersistent and 'P' or 'N'
-    active = dom.isActive() and 'A' or 'I'
-
-    lus = luns(dom)
-
-    strlv = ''
-
-    for lun in lus:
-        lu = storage.lu(lun=lun)
-        mask = lu.get('masks') and 'M' or 'U'
-
-        print "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s" % (host,
-                                                 dom.name(),
-                                                 persistent,
-                                                 active,
-                                                 lun,
-                                                 lu.get("name", ""),
-                                                 mask,
-                                                 lu.get(u"snapshotCount", ""),
-                                                 lu.get("containingPool", ""),
-                                                 giga(lu.get("rawSize", "")))
-
-
-size = lambda x: ".".join([x[:-3], x[-3:]])
-
-
-def printpv(pv):
+def printpool(pool):
     """Print pv
     """
+    lun_format = lambda x, y: '.'.join([str(x), str(y)])
+
     string = "{0:10} {1:5}".format(
-        pv["name"], pv["lun"]
+        pool["name"], lun_format(pool["shelf"], pool["lun"])
     )
 
-    if pv["status"] == "mirrored":
-        string += "{0:8}".format("("+pv["mirror"]+")")
+    if pool["status"] == "mirrored":
+        string += "{0:8}".format(
+            "("+lun_format(pool["mshelf"], pool["mlun"])+")"
+        )
     else:
         string += "{0:8}".format("")
 
     string += "{0:12} {1:12} {2:3} {3:8}".format(
-        size(str(pv["total"])) + "GB",
-        size(str(pv["free"])) + "GB",
-        str(pv["percent"]) + "%",
-        pv["status"]
+        size(str(pool["total"])) + "GB",
+        size(str(pool["free"])) + "GB",
+        str(pool["percent"]) + "%",
+        pool["status"]
     )
 
     print string
@@ -510,6 +554,9 @@ def main():
 
     elif arguments["resume"]:
         resume(arguments["<shelf>"])
+
+    elif arguments["pools"]:
+        pools()
 
     elif arguments["pvs"]:
         pvs()
