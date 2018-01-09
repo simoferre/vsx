@@ -11,6 +11,8 @@ vsx snap show [ <guest> ]
 vsx lv <lvname>
 vsx (suspend | resume) [ <shelf> ]
 vsx csv
+vsx pvs
+vsx pools
 ```
 
 ## Install
