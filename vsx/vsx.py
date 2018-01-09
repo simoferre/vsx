@@ -149,7 +149,6 @@ class VSX(object):
         }
 
         url = self.url('fetch')
-        lun_format = lambda x, y: '.'.join([str(x), str(y)])
         total_length = 0
 
         for shelf in SHELVES:
@@ -164,16 +163,19 @@ class VSX(object):
             for r in pv_resp[0][1]["reply"]:
                 d = {
                     "name": r["poolName"],
-                    "lun": lun_format(r["lunShelf"], str(r["lunNum"])),
+                    "shelf": r["lunShelf"],
+                    "lun": r["lunNum"],
                     "total": r["status"]["totalLength"],
                     "free": r["status"]["freeExtents"],
                     "percent": r["status"]["percentUsed"],
                     "status": r["status"]["state"],
-                    "mirror": None
+                    "mshelf": None,
+                    "mlun": None
                 }
 
                 if r["mirrored"]:
-                    d["mirror"] = lun_format(r["mirrorShelf"], r["mirrorLunNum"])
+                    d["mshelf"] = r["mirrorShelf"]
+                    d["mlun"] = r["mirrorLunNum"]
 
                 pvs_dict["total_size"] += d["total"]
                 pvs_dict["total_free_size"] += d["free"]
@@ -455,9 +457,9 @@ class TestVSX(unittest.TestCase):
         for s in SHELVES:
             for p in pvs[s]["pools"]:
                 if p["status"] == "mirrored":
-                    assert(p["mirror"])
+                    assert(p["mshelf"])
                 else:
-                    assert(not p["mirror"])
+                    assert(not p["mshelf"])
 
 
 if __name__ == "__main__":
