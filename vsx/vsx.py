@@ -196,7 +196,11 @@ class VSX(object):
         """
 
         if lun:
-            (shelf, index) = map(int, lun.split('.'))
+            try:
+                (shelf, index) = map(int, lun.split('.'))
+            except ValueError:
+                return {}
+
             for lu in self.lvs:
                 lun = lu['lvStatus']['exportedLun']
 
