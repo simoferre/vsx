@@ -11,7 +11,7 @@ dep:
 	apt-get install libxslt-dev
 	apt-get install libpython2.7-dev
 	apt-get install zlib1g-dev
-	apt-get install pkg-config
+	apt-get install pkgconf
 	apt-get install libvirt-dev
 	apt-get install libvirt-bin
 	pip install -r requirements.txt
