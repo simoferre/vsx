@@ -290,7 +290,8 @@ def pools():
             printpool(pool)
 
         print
-        print "size managed by shelf: %sGB (free %sGB)" % (
+        print "size managed by shelf %s: %sGB (free %sGB)" % (
+            shelf,
             size(str(pools[shelf]["size"])),
             size(str(pools[shelf]["free_size"]))
         )
@@ -309,9 +310,10 @@ def pvs():
     """
     for shelf, luns in storage.pvs().items():
         total_size = free_size = 0
-        string = ''
+
+        print colored(shelf, "light red")
         for lun in sorted(luns, key=lambda x: x["lun"]):
-            string += "{0:1} {1:12} {2:11} {3:4}\n".format(
+            print "{0:1} {1:12} {2:11} {3:4}".format(
                 lun["lun"],
                 size(str(lun["total"]))+"GB",
                 size(str(lun["free"]))+"GB",
@@ -321,13 +323,13 @@ def pvs():
             total_size += lun["total"]
             free_size += lun["free"]
 
-        string += '\n'
-        print "Shelf: %s (%s %s)" %(
-            colored(shelf, "light red"),
+        print
+        print "size managed by shelf %s: %sGB (free %sGB)" % (
+            shelf,
             size(str(total_size))+"GB",
             size(str(free_size))+"GB"
         )
-        print string
+        print
 
     return
 
